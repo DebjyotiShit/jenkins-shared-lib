@@ -11,9 +11,9 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/DebjyotiShit/ClearCut.git',
-                     branch: 'master',
-                     credentialsId: 'gitCredentials'
+                script {
+                    code_checkout("https://github.com/DebjyotiShit/ClearCut.git","master","gitCredentials")
+                }
             }
         }
 
