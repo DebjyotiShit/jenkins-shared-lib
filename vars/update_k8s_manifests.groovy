@@ -4,13 +4,13 @@
 // -----------------------------------------------------------------------------
 
 def call(Map config = [:]) {
-    def imageTag = config.imageTag ?: error("[ERROR] imageTag is required")
+    def replacements = config.replacements ?: error("[ERROR] 'replacements' map is required")
     def manifestsPath = config.manifestsPath ?: 'k8s'
     def gitCredentials = config.gitCredentials ?: 'github-credentials'
     def gitUserName = config.gitUserName ?: 'Jenkins CI'
     def gitUserEmail = config.gitUserEmail ?: 'jenkins@example.com'
 
-    echo "[INFO] Updating Kubernetes image tags to: ${imageTag}"
+    echo "[INFO] Updating Kubernetes image tags with multiple values: ${replacements}"
 
     withCredentials([usernamePassword(
         credentialsId: gitCredentials,
@@ -22,12 +22,16 @@ def call(Map config = [:]) {
             git config user.email "${gitUserEmail}"
         """
 
-        sh """
-            echo "[INFO] Replacing image tags in ${manifestsPath}/*.yaml..."
-            find ${manifestsPath} -type f -name '*.yaml' -exec \\
-                sed -i -E 's|(image:\\s+[[:alnum:]_\\./\\-]+):[[:alnum:]\\.\\-_]+|\\1:${imageTag}|g' {} +
-        """
+        // Loop through each replacement and update manifests
+        replacements.each { imageName, newTag ->
+            echo "[INFO] Replacing tag for image: ${imageName} → ${imageName}:${newTag}"
+            sh """
+                find ${manifestsPath} -type f -name '*.yaml' -exec \\
+                    sed -i -E 's|(image:\\s*${imageName}):[[:alnum:]\\._\\-]+|\\1:${newTag}|g' {} +
+            """
+        }
 
+        // Check if any changes were made
         def hasChanges = sh(script: """
             if git diff --quiet; then
                 echo "no_changes"
@@ -40,9 +44,9 @@ def call(Map config = [:]) {
             echo "[INFO] Changes detected. Committing and pushing..."
             sh """
                 git add ${manifestsPath}/*.yaml
-                git commit -m "[AUTO] Update backend image tag to ${imageTag}"
+                git commit -m "[AUTO] Update multiple image tags: ${replacements.collect{ k,v -> "$k:$v" }.join(', ')}"
                 git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
-                git push origin HEAD:master
+                git push origin HEAD:main
             """
         } else {
             echo "[INFO] No changes to commit. All image tags are already up-to-date."
