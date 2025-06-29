@@ -1,11 +1,11 @@
 // -----------------------------------------------------------------------------
 // Maintained by: Debjyoti Shit
-// Description : Replace only image tags in *.yaml files (preserving image names).
+// Description: Update the Kubernetes manifests with the new image tag.
 // -----------------------------------------------------------------------------
 
 def call(Map config = [:]) {
     def imageTag       = config.imageTag       ?: error("[ERROR] imageTag is required")
-    def manifestsPath  = config.manifestsPath  ?: 'kubernetes'
+    def manifestsPath  = config.manifestsPath  ?: 'k8s'
     def gitCredentials = config.gitCredentials ?: 'github-credentials'
     def gitUserName    = config.gitUserName    ?: 'Jenkins CI'
     def gitUserEmail   = config.gitUserEmail   ?: 'jenkins@example.com'
@@ -24,7 +24,7 @@ def call(Map config = [:]) {
 
         sh """
             echo "[INFO] Replacing image tags in ${manifestsPath}/*.yaml..."
-            find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[\\w./-]+):[\\w.-]+|\\1:${imageTag}|g' {} +
+            find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[\\w./-]+):[^\\s"]+|\\1:${imageTag}|g' {} +
         """
 
         def hasChanges = sh(script: "git diff --quiet || echo changed", returnStdout: true).trim()
