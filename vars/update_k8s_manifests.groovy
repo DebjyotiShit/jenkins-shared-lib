@@ -24,30 +24,29 @@ def call(Map config = [:]) {
 
         // Loop through each replacement and update manifests
         replacements.each { imageName, newTag ->
-            echo "[INFO] Replacing tag for image: ${imageName} → ${imageName}:${newTag}"
+            echo "[INFO] Replacing tag for image: ${imageName} → ${newTag}"
+
+            // Use find + sed to replace only in relevant files
             sh """
                 find ${manifestsPath} -type f -name '*.yaml' -exec \\
-                    sed -i -E 's|(image:\\s*${imageName}):[[:alnum:]\\._\\-]+|\\1:${newTag}|g' {} +
+                    sed -i -E 's|(image:\\s*${imageName}):[^ ]+|\\1:${newTag}|g' {} +
             """
         }
 
         // Check if any changes were made
-        def hasChanges = sh(script: """
-            if git diff --quiet; then
-                echo "no_changes"
-            else
-                echo "changes_detected"
-            fi
-        """, returnStdout: true).trim()
+        def hasChanges = sh(script: "git diff --quiet || echo changed", returnStdout: true).trim()
 
-        if (hasChanges == "changes_detected") {
+        if (hasChanges == "changed") {
             echo "[INFO] Changes detected. Committing and pushing..."
-            sh """
-                git add ${manifestsPath}/*.yaml
-                git commit -m "[AUTO] Update multiple image tags: ${replacements.collect{ k,v -> "$k:$v" }.join(', ')}"
-                git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
-                git push origin HEAD:main
-            """
+
+            dir(manifestsPath) {
+                sh """
+                    git add .
+                    git commit -m "[AUTO] Updated Kubernetes image tags"
+                    git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
+                    git push origin HEAD:main
+                """
+            }
         } else {
             echo "[INFO] No changes to commit. All image tags are already up-to-date."
         }
