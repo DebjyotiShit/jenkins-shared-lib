@@ -1,3 +1,8 @@
+// -----------------------------------------------------------------------------
+// Maintained by: Debjyoti Shit
+// Description: Jenkinsfile for testing k8s image tag update.
+// -----------------------------------------------------------------------------
+
 @Library('shared-lib') _
 
 pipeline {

@@ -1,0 +1,84 @@
+// -----------------------------------------------------------------------------
+// Maintained by: Debjyoti Shit
+// Description: Jenkinsfile for testing the docker build and push.
+// -----------------------------------------------------------------------------
+
+@Library('shared-lib') _
+
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'BACKEND_IMAGE_TAG', defaultValue: '', description: 'Tag for backend Docker image')
+        string(name: 'FRONTEND_IMAGE_TAG', defaultValue: '', description: 'Tag for frontend Docker image')
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                script {
+                    code_checkout("https://github.com/DebjyotiShit/ClearCut.git", "master", "gitCredentials")
+                }
+            }
+        }
+
+        stage('Build Backend Image') {
+            steps {
+                script {
+                    build_docker_image(
+                        imageName: 'clearcut_backend_beta',
+                        imageTag: params.BACKEND_IMAGE_TAG,
+                        dockerfile: 'backend/Dockerfile',
+                        context: 'backend'
+                    )
+                }
+            }
+        }
+
+        stage('Build Frontend Image') {
+            steps {
+                script {
+                    build_docker_image(
+                        imageName: 'clearcut_frontend_beta',
+                        imageTag: params.FRONTEND_IMAGE_TAG,
+                        dockerfile: 'frontend/Dockerfile',
+                        context: 'frontend'
+                    )
+                }
+            }
+        }
+
+        stage('Push Backend Image') {
+            steps {
+                script {
+                    push_docker_image(
+                        imageName: 'clearcut_backend_beta',
+                        imageTag: params.BACKEND_IMAGE_TAG,
+                        credentials: 'docker-hub-credentials'
+                    )
+                }
+            }
+        }
+
+        stage('Push Frontend Image') {
+            steps {
+                script {
+                    push_docker_image(
+                        imageName: 'clearcut_frontend_beta',
+                        imageTag: params.FRONTEND_IMAGE_TAG,
+                        credentials: 'docker-hub-credentials'
+                    )
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "[SUCCESS] Build, push, and manifest update completed."
+        }
+        failure {
+            echo "[FAILURE] Pipeline failed at one or more stages."
+        }
+    }
+}
