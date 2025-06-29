@@ -47,7 +47,7 @@ def call(Map config = [:]) {
                 git add ${manifestsPath}/*.yaml
                 git commit -m "[CI/CD] Updated image tags: ${replacements.collect{ k,v -> "$k:$v" }.join(', ')}"
                 git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
-                git push origin HEAD:main
+                git push origin HEAD:master
             """
         } else {
             echo "[INFO] No changes to commit. All image tags are already up-to-date."
