@@ -17,6 +17,7 @@ def call(Map config = [:]) {
         usernameVariable: 'GIT_USERNAME',
         passwordVariable: 'GIT_PASSWORD'
     )]) {
+        // Set Git user info
         sh """
             git config user.name "${gitUserName}"
             git config user.email "${gitUserEmail}"
@@ -26,27 +27,33 @@ def call(Map config = [:]) {
         replacements.each { imageName, newTag ->
             echo "[INFO] Replacing tag for image: ${imageName} → ${newTag}"
 
-            // Use find + sed to replace only in relevant files
+            // Print matching files
+            sh """
+                echo "[DEBUG] Files containing ${imageName}:"
+                find ${manifestsPath} -type f -name '*.yaml' -exec grep -l '${imageName}' {} \\;
+            """
+
+            // Replace image tag
             sh """
                 find ${manifestsPath} -type f -name '*.yaml' -exec \\
-                    sed -i -E 's|(image:\\s*${imageName}):[^ ]+|\\1:${newTag}|g' {} +
+                    sed -i -E 's|(image:\\s*)(${imageName}):([^ /]+)|\\1\\2:${newTag}|g' {} +
             """
         }
 
-        // Check if any changes were made
+        // Show diff for debugging
+        sh "git diff"
+
+        // Check for changes
         def hasChanges = sh(script: "git diff --quiet || echo changed", returnStdout: true).trim()
 
         if (hasChanges == "changed") {
             echo "[INFO] Changes detected. Committing and pushing..."
-
-            dir(manifestsPath) {
-                sh """
-                    git add .
-                    git commit -m "[AUTO] Updated Kubernetes image tags"
-                    git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
-                    git push origin HEAD:main
-                """
-            }
+            sh """
+                git add ${manifestsPath}/*.yaml
+                git commit -m "[CI/CD] Updated Kubernetes image tags"
+                git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
+                git push origin HEAD:master
+            """
         } else {
             echo "[INFO] No changes to commit. All image tags are already up-to-date."
         }
