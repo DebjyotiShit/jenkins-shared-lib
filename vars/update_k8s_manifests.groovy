@@ -29,7 +29,7 @@ def call(Map config = [:]) {
         """
 
         sh """
-            cho "[INFO] Updating image tags in ${manifestsPath}..."
+            echo "[INFO] Updating image tags in ${manifestsPath}..."
             find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[\\w/\\.-]+):[\\w\\.-]+|\\1:${imageTag}|g' {} +
         """
 
