@@ -4,13 +4,13 @@
 // -----------------------------------------------------------------------------
 
 def call(Map config = [:]) {
-    def imageTag = config.imageTag ?: error("[ERROR] imageTag is required")
+    def replacements = config.replacements ?: error("[ERROR] 'replacements' map is required")
     def manifestsPath = config.manifestsPath ?: 'k8s'
     def gitCredentials = config.gitCredentials ?: 'github-credentials'
     def gitUserName = config.gitUserName ?: 'Jenkins CI'
     def gitUserEmail = config.gitUserEmail ?: 'jenkins@example.com'
 
-    echo "[INFO] Updating Kubernetes image tags to: ${imageTag}"
+    echo "[INFO] Updating Kubernetes image tags with multiple values: ${replacements}"
 
     withCredentials([usernamePassword(
         credentialsId: gitCredentials,
@@ -22,28 +22,31 @@ def call(Map config = [:]) {
             git config user.email "${gitUserEmail}"
         """
 
-        sh """
-            echo "[INFO] Replacing image tags in ${manifestsPath}/*.yaml..."
-            find ${manifestsPath} -type f -name '*.yaml' -exec \\
-                sed -i -E 's|(image:\\s+[[:alnum:]_\\./\\-]+):[[:alnum:]\\.\\-_]+|\\1:${imageTag}|g' {} +
-        """
+        // Loop through each replacement and update manifests
+        replacements.each { imageName, newTag ->
+            echo "[INFO] Replacing tag for image: ${imageName} → ${newTag}"
 
-        def hasChanges = sh(script: """
-            if git diff --quiet; then
-                echo "no_changes"
-            else
-                echo "changes_detected"
-            fi
-        """, returnStdout: true).trim()
-
-        if (hasChanges == "changes_detected") {
-            echo "[INFO] Changes detected. Committing and pushing..."
+            // Use find + sed to replace only in relevant files
             sh """
-                git add ${manifestsPath}/*.yaml
-                git commit -m "[AUTO] Update backend image tag to ${imageTag}"
-                git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
-                git push origin HEAD:master
+                find ${manifestsPath} -type f -name '*.yaml' -exec \\
+                    sed -i -E 's|(image:\\s*${imageName}):[^ ]+|\\1:${newTag}|g' {} +
             """
+        }
+
+        // Check if any changes were made
+        def hasChanges = sh(script: "git diff --quiet || echo changed", returnStdout: true).trim()
+
+        if (hasChanges == "changed") {
+            echo "[INFO] Changes detected. Committing and pushing..."
+
+            dir(manifestsPath) {
+                sh """
+                    git add .
+                    git commit -m "[AUTO] Updated Kubernetes image tags"
+                    git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
+                    git push origin HEAD:main
+                """
+            }
         } else {
             echo "[INFO] No changes to commit. All image tags are already up-to-date."
         }
