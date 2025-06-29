@@ -28,10 +28,9 @@ def call(Map config = [:]) {
             git config user.email "${gitUserEmail}"
         """
 
-        // Replace all Docker tags in image lines like: image: repo/name:tag
         sh """
-            echo "[INFO] Searching for image lines in ${manifestsPath}..."
-            find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[^:]+):[^\\s]+|\\1:${imageTag}|g' {} +
+            cho "[INFO] Updating image tags in ${manifestsPath}..."
+            find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[\\w/\\.-]+):[\\w\\.-]+|\\1:${imageTag}|g' {} +
         """
 
         // Check if anything actually changed
@@ -40,7 +39,7 @@ def call(Map config = [:]) {
             echo "[INFO] Git changes detected. Committing and pushing..."
             sh """
                 git add ${manifestsPath}/*.yaml
-                git commit -m "[INFO] Update Docker image tags to ${imageTag} [ci skip]"
+                git commit -m "[INFO] Update Docker image tags to ${imageTag} "
                 git remote set-url origin https://\$GIT_USERNAME:\$GIT_PASSWORD@\$(git config --get remote.origin.url | sed 's|https://||')
                 git push origin HEAD
 """
