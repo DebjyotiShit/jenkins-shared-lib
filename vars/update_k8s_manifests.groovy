@@ -4,13 +4,13 @@
 // -----------------------------------------------------------------------------
 
 def call(Map config = [:]) {
-    def imageTag       = config.imageTag       ?: error("[ERROR] imageTag is required")
-    def manifestsPath  = config.manifestsPath  ?: 'k8s'
+    def imageTag = config.imageTag ?: error("[ERROR] imageTag is required")
+    def manifestsPath = config.manifestsPath ?: 'k8s'
     def gitCredentials = config.gitCredentials ?: 'github-credentials'
-    def gitUserName    = config.gitUserName    ?: 'Jenkins CI'
-    def gitUserEmail   = config.gitUserEmail   ?: 'jenkins@example.com'
+    def gitUserName = config.gitUserName ?: 'Jenkins CI'
+    def gitUserEmail = config.gitUserEmail ?: 'jenkins@example.com'
 
-    echo "[INFO] Updating Kubernetes image tags to: ${imageTag}"
+    echo "[INFO] Updating Kubernetes image tag to: ${imageTag}"
 
     withCredentials([usernamePassword(
         credentialsId: gitCredentials,
@@ -22,22 +22,22 @@ def call(Map config = [:]) {
             git config user.email "${gitUserEmail}"
         """
 
+        echo "[INFO] Replacing image tag for clearcut-backend..."
         sh """
-            echo "[INFO] Replacing image tags in ${manifestsPath}/*.yaml..."
-            find ${manifestsPath} -type f -name "*.yaml" -exec sed -i -E 's|(image:\\s+[\\w./-]+):[^\\s"]+|\\1:${imageTag}|g' {} +
+            sed -i "s|image: debjyoti08/clearcut_server:.*|image: debjyoti08/clearcut_server:${imageTag}|g" ${manifestsPath}/*.yaml
         """
 
         def hasChanges = sh(script: "git diff --quiet || echo changed", returnStdout: true).trim()
         if (hasChanges == "changed") {
-            echo "[INFO] Git changes detected. Committing and pushing..."
+            echo "[INFO] Changes detected. Committing and pushing..."
             sh """
                 git add ${manifestsPath}/*.yaml
-                git commit -m "[INFO] Update Docker image tags to ${imageTag} [ci skip]"
-                git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@`git config --get remote.origin.url | sed 's|https://||'`
+                git commit -m "[AUTO] Update backend image tag to ${imageTag}"
+                git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/DebjyotiShit/ClearCut.git
                 git push origin HEAD
             """
         } else {
-            echo "[SUCCESS] No changes to commit. Image tags already up-to-date."
+            echo "[INFO] No changes to commit. Image already up-to-date."
         }
     }
 }
