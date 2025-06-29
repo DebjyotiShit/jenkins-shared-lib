@@ -41,9 +41,10 @@ def call(Map config = [:]) {
             sh """
                 git add ${manifestsPath}/*.yaml
                 git commit -m "[INFO] Update Docker image tags to ${imageTag} [ci skip]"
-                git remote set-url origin https://\$GIT_USERNAME:\$GIT_PASSWORD@github.com/\$(git config --get remote.origin.url | sed 's|https://||')
+                git remote set-url origin https://\$GIT_USERNAME:\$GIT_PASSWORD@\$(git config --get remote.origin.url | sed 's|https://||')
                 git push origin HEAD
-            """
+"""
+
         } else {
             echo "[SUCCESS] No image tag updates were needed. Git clean."
         }
